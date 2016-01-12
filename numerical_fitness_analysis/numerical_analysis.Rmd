@@ -1,0 +1,95 @@
+---
+title: "Numerical analysis of colonizer fitness"
+author: "Kubisch et al."
+date: "19.02.2015"
+output: html_document
+---
+
+In this script we provide a description of the numerical analysis we performed to investigate the expected fitness of colonizers, leading to Figure 4 in the manuscript "The downward spiral: eco-evolutionary feedback loops lead to the emergence of 'elastic' ranges.".
+
+We therefore first need to define the Beverton & Holt - function for density-dependent growth, including a description of the Allee effect (cf. Kubisch et al., 2011, Ecography 32: 1002-1008):
+
+```{r}
+surv_prob <- function(n,cap,lamb,alph) {
+  b <- ((n/cap)^2)/(alph^2+(n/cap)^2)
+	s <- b/(1+(lamb-1)/cap*n)
+	return(s)
+}
+```
+
+This function calculates density-dependent survival probability using the parameters population size (n), carrying capacity (cap), per capita growth rate (lamb) and Allee effect strength (alph). For an example of the growth curve see below (cap=100, lamb=2, alph=0.05):
+
+```{r, echo=FALSE, fig.width=4, fig.height=3}
+library(ggplot2)
+qplot(1:150, stat = "function", geom = "line",
+      fun = function(x) surv_prob(x,100,2,0.05),ylab="offspring survival",xlab="population size")
+```
+
+Now we define a function "immi_fit" that does the numerical analysis:
+
+```{r}
+immi_fit <- function(x,d) {
+  
+	# First we define the most important parameters.
+  # In here, every parameter that changes gradually needs to be calculated accordingly. We do it exemplarily for the dispersal mortality gradient.
+	
+	maxx <- 200 # maximum landscape dimension in x-direction
+	K <- 100 # carrying capacity
+	lambda_0 <- 2 # per capita growth rate
+	sigma <- 0.2 # strength of environmental stochasticity
+	epsilon <- 0.05 # catastrophic extinction risk
+	mu1 <- 0.2+(x-1)*(0.8/maxx) # dispersal mortality value in the natal patch
+	mu2 <- 0.2+x*(0.8/maxx) # dispersal mortality value in the target patch
+	mu <- mean(c(mu1,mu2)) # effective dispersal mortality
+  
+  repli <- 10000 # this was 1e6 in the paper, but in order to reduce computational effort to recreate the findings it is reduced here
+	
+	N.cx <- K*d*(1-mu) # number of immigrants arriving in the patch (under the assumption that we have a sharp range border from K to 0)
+		
+	# we first have to transform lambda_0 and sigma for the loggauss distribution (as they provide us the mean and sd of the resulting distribution)
+	v <- sigma^2
+	s_d <- sqrt(log((v/(2*lambda_0))+1))
+	m <- log(lambda_0)-0.5*(s_d*s_d);
+	
+	lambda <- rlnorm(repli,meanlog=m,sdlog=s_d) # this gives us a number of random realized growth rates (i.e. including the effect of environmental stochasticity)
+	
+	surv <- surv_prob(N.cx,K,lambda_0,allee) # based on the number of immigrants, patch size, growth rate and Allee effect we calculate offspring survival probability
+	
+	lambda <- lambda*surv # by multiplying the survival probability by the current growth rates incl. env. stochasticity we get the "effective" growth rate (i.e. actual growth of offspring including density regulation)
+	
+	offspr <- rpois(length(lambda),lambda) # from that we draw offspring numbers from a Poisson distribution
+  
+  W <- offspr * rbinom(length(offspr),1,1-epsilon) # we include the effects of catastrophic external extinctions by using the binomial distribution with success (i.e. survival) probability (1-epsilon) -> the resulting W is the effective distribution of offspring of colonizing immigrants at this x-location, if it was located directly behind the range margin
+  
+  w_immi <- exp(log(mean(W))-var(W)/(mean(W)^2)) # the Jean series approximation of the geometric mean provides us a good measure of fitness, as it is more sensitive to variance than the arithmetic mean, but not as restrictive as the geometric mean
+	
+	return(w_immi)
+}
+```
+
+Now that we got everything we need to calculate the fitness of immigrants colonizing new patches ahead of the range margin, we can do that - the code below exemplarily calculates figure 4B from the manuscript.
+
+```{r, fig.width=4, fig.height=3, warning=FALSE}
+allee <- 0.05
+ds <- seq(0.5,0.05,len=10)
+xs <- 1:200
+w_mu_a005 <- matrix(nrow=length(ds),ncol=max(xs))
+for (d in 1:length(ds)) {
+    w_mu_a005[d,] <- sapply(xs,immi_fit,d=ds[d])
+}
+
+library(reshape2)
+dataL <- melt(w_mu_a005, id="x")
+
+p <- ggplot(data=dataL, aes(x=Var2, y=value, colour=Var1, group=Var1)) +
+  geom_line(size=0.75) +
+  theme(legend.position = "none",
+  axis.title.x = element_text(size=12),
+  axis.title.y = element_text(size=12),
+  axis.text.x = element_text(size=10),
+  axis.text.y = element_text(size=10)) +
+  ylab(expression(paste("mean colonizer fitness (",bar(w[c]),")",sep=""))) +
+  xlab("spatial location")
+
+print(p)
+```
