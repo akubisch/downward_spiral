@@ -1,5 +1,7 @@
 # The downward spiral: eco-evolutionary feedback loops lead to the emergence of 'elastic' ranges
 
+Authors: Alexander Kubisch, Anna-Marie Winter &amp; Emanuel Fronhofer
+
 This repository contains the [sources](individual-based_simulation_model) of the individual-based simulations as well as a commented [script](numerical_fitness_analysis) for the numerical fitness analysis we performed for the study. The study has been published in *Ecography* and can be found [here](http://onlinelibrary.wiley.com/doi/10.1111/ecog.01701/abstract).
 
 ### Abstract
