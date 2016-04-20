@@ -1,4 +1,5 @@
 # The downward spiral: eco-evolutionary feedback loops lead to the emergence of 'elastic' ranges
+[![DOI](https://zenodo.org/badge/21570/akubisch/downward_spiral.svg)](https://zenodo.org/badge/latestdoi/21570/akubisch/downward_spiral)
 
 Authors: Alexander Kubisch, Anna-Marie Winter &amp; Emanuel Fronhofer
 
